@@ -147,42 +147,35 @@ while True:
       print ('Cache location:\t\t' + cacheLocation)
 
       fileExists = os.path.isfile(cacheLocation)
-
+          
       if fileExists:
-        cache_time = os.path.getmtime(cacheLocation)
-        current_time = time.time()
-      
-        with open(cacheLocation, "rb") as f:
-            first_line = f.readline().decode('utf-8', errors='ignore')
-            max_age = -1
-            if first_line.startswith("X-Cache-Control: max-age="):
-                try:
-                    max_age = int(first_line.split('=')[1].strip())
-                except:
-                    pass
-        
-        if max_age > 0 and (current_time - cache_time) > max_age:
-            print(f"Cache expired! max-age={max_age}, age={(current_time - cache_time)}")
-            raise Exception("Cache expired")
+          cache_time = os.path.getmtime(cacheLocation)
+          current_time = time.time()
+          
+          with open(cacheLocation, "rb") as f:
+              cache_content = f.read()
+              
+              if cache_content.startswith(b"X-Cache-Control: max-age="):
+                  first_line_end = cache_content.find(b'\r\n')
+                  if first_line_end != -1:
+                      control_line = cache_content[:first_line_end].decode('utf-8', errors='ignore')
+                      try:
+                          max_age = int(control_line.split('=')[1].strip())
+                          
+                          if max_age > 0 and (current_time - cache_time) > max_age:
+                              print(f"Cache expired! max-age={max_age}, age={(current_time - cache_time)}")
+                              raise Exception("Cache expired")
+                          
+                          cache_content = cache_content[first_line_end + 2:]
+                      except:
+                          pass
+              
+              print ('Cache hit! Loading from cache file: ' + cacheLocation)
+              clientSocket.sendall(cache_content)
+              print ('Sent to the client from cache')
+      else:
+          raise Exception("Cache file not found")
 
-      
-      # Check wether the file is currently in the cache
-      cacheFile = open(cacheLocation, "r")
-      cacheData = cacheFile.readlines()
-
-      if cacheData[0].startswith("X-Cache-Control:"):
-        cacheData = cacheData[1:]
-
-      print ('Cache hit! Loading from cache file: ' + cacheLocation)
-      # ProxyServer finds a cache hit
-      # Send back response to client 
-      # ~~~~ INSERT CODE ~~~~
-      cachedResponse = ''.join(cacheData)
-      clientSocket.sendall(cachedResponse.encode())
-      # ~~~~ END CODE INSERT ~~~~
-      cacheFile.close()
-      print ('Sent to the client:')
-      print ('> ' + cacheData)
     except:
       # cache miss.  Get resource from origin server
       originServerSocket = None
