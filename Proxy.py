@@ -4,6 +4,7 @@ import sys
 import os
 import argparse
 import re
+import time
 
 def parse_http_response(response):
     try:
@@ -146,10 +147,31 @@ while True:
       print ('Cache location:\t\t' + cacheLocation)
 
       fileExists = os.path.isfile(cacheLocation)
+
+      if fileExists:
+        cache_time = os.path.getmtime(cacheLocation)
+        current_time = time.time()
+      
+        with open(cacheLocation, "rb") as f:
+            first_line = f.readline().decode('utf-8', errors='ignore')
+            max_age = -1
+            if first_line.startswith("X-Cache-Control: max-age="):
+                try:
+                    max_age = int(first_line.split('=')[1].strip())
+                except:
+                    pass
+        
+        if max_age > 0 and (current_time - cache_time) > max_age:
+            print(f"Cache expired! max-age={max_age}, age={(current_time - cache_time)}")
+            raise Exception("Cache expired")
+
       
       # Check wether the file is currently in the cache
       cacheFile = open(cacheLocation, "r")
       cacheData = cacheFile.readlines()
+
+      if cacheData[0].startswith("X-Cache-Control:"):
+        cacheData = cacheData[1:]
 
       print ('Cache hit! Loading from cache file: ' + cacheLocation)
       # ProxyServer finds a cache hit
@@ -251,6 +273,14 @@ while True:
         if not os.path.exists(cacheDir):
           os.makedirs(cacheDir)
         cacheFile = open(cacheLocation, 'wb')
+
+        if 'cache-control' in parsed_response['headers'] and 'max-age=' in parsed_response['headers']['cache-control']:
+          try:
+              max_age = int(re.search(r'max-age=(\d+)', parsed_response['headers']['cache-control']).group(1))
+              cacheFile.write(f"X-Cache-Control: max-age={max_age}\r\n".encode())
+              print(f"Added cache control: max-age={max_age}")
+          except:
+              pass
 
         # Save origin server response in the cache file
         # ~~~~ INSERT CODE ~~~~
