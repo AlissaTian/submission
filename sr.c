@@ -247,3 +247,22 @@ void A_timerinterrupt(void)
   }
 }
 
+/********* Receiver (B) variables and procedures ************/
+
+static int B_nextseqnum;                 /* the sequence number for the next packets sent by B */
+static struct pkt B_buffer[WINDOWSIZE];  /* buffer for out-of-order packets */
+static int B_received[WINDOWSIZE];       /* indicates whether packet has been received */
+static int B_base;                       /* base sequence number of receive window */
+
+void B_init(void)
+{
+  int i;
+  
+  B_nextseqnum = 1;
+  B_base = 0;
+  
+  for (i=0; i<WINDOWSIZE; i++) {
+    B_received[i] = FALSE;
+  }
+}
+
