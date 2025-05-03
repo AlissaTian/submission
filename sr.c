@@ -347,3 +347,11 @@ void B_input(struct pkt packet)
   tolayer3(B, sendpkt);
 }
 
+void B_output(struct msg message)  
+{
+}
+
+void B_timerinterrupt(void)
+{
+}
+
