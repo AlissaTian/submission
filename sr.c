@@ -114,3 +114,69 @@ void A_output(struct msg message)
     window_full++;
   }
 }
+
+/* called from layer 3, when a packet arrives for layer 4 */
+void A_input(struct pkt packet)
+{
+  int i, idx;
+  int next_to_time = -1;
+
+  /* if received ACK is not corrupted */ 
+  if (!IsCorrupted(packet)) {
+    if (TRACE > 0)
+      printf("----A: uncorrupted ACK %d is received\n", packet.acknum);
+    total_ACKs_received++;
+
+    /* Ignore NAKs (NOTINUSE) */
+    if (packet.acknum == NOTINUSE) {
+      return;
+    }
+
+    /* find this ACK in our window */
+    for (i=0; i<windowcount; i++) {
+      idx = (windowfirst + i) % WINDOWSIZE;
+      if (buffer[idx].seqnum == packet.acknum) {
+        /* Mark as acknowledged if not already done */
+        if (!acked[idx]) {
+          acked[idx] = TRUE;
+          new_ACKs++;
+          
+          /* If this was the packet we were timing, stop the timer */
+          if (timer_for_pkt == idx) {
+            stoptimer(A);
+            timer_for_pkt = -1;
+          }
+        }
+        break;
+      }
+    }
+    
+    /* Slide window if possible */
+    while (windowcount > 0 && acked[windowfirst]) {
+      windowfirst = (windowfirst + 1) % WINDOWSIZE;
+      windowcount--;
+    }
+    
+    /* If timer was stopped, find next unacked packet to time */
+    if (timer_for_pkt == -1 && windowcount > 0) {
+      for (i=0; i<windowcount; i++) {
+        idx = (windowfirst + i) % WINDOWSIZE;
+        if (!acked[idx]) {
+          next_to_time = idx;
+          break;
+        }
+      }
+      
+      if (next_to_time != -1) {
+        if (TRACE > 1)
+          printf("----A: Starting timer for packet %d\n", buffer[next_to_time].seqnum);
+        starttimer(A, RTT);
+        timer_for_pkt = next_to_time;
+      }
+    }
+  }
+  else {
+    if (TRACE > 0)
+      printf("----A: corrupted ACK is received, do nothing!\n");
+  }
+}
