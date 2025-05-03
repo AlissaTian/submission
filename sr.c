@@ -66,3 +66,51 @@ void A_init(void)
     acked[i] = FALSE;
   }
 }
+
+/* called from layer 5 (application layer), passed the message to be sent to other side */
+void A_output(struct msg message)
+{
+  struct pkt sendpkt;
+  int i;
+
+  /* if not blocked waiting on ACK */
+  if (windowcount < WINDOWSIZE) {
+    if (TRACE > 1)
+      printf("----A: New message arrives, send window is not full, send new messge to layer3!\n");
+
+    /* create packet */
+    sendpkt.seqnum = A_nextseqnum;
+    sendpkt.acknum = NOTINUSE;
+    for (i=0; i<20; i++) 
+      sendpkt.payload[i] = message.data[i];
+    sendpkt.checksum = ComputeChecksum(sendpkt); 
+
+    /* put packet in window buffer */
+    windowlast = (windowlast + 1) % WINDOWSIZE; 
+    buffer[windowlast] = sendpkt;
+    acked[windowlast] = FALSE;
+    windowcount++;
+
+    /* send out packet */
+    if (TRACE > 0)
+      printf("Sending packet %d to layer 3\n", sendpkt.seqnum);
+    tolayer3(A, sendpkt);
+
+    /* start timer for this packet if no timer is running */
+    if (timer_for_pkt == -1) {
+      if (TRACE > 1)
+        printf("----A: Starting timer for packet %d\n", sendpkt.seqnum);
+      starttimer(A, RTT);
+      timer_for_pkt = windowlast;
+    }
+
+    /* get next sequence number, wrap back to 0 */
+    A_nextseqnum = (A_nextseqnum + 1) % SEQSPACE;  
+  }
+  /* if blocked, window is full */
+  else {
+    if (TRACE > 0)
+      printf("----A: New message arrives, send window is full\n");
+    window_full++;
+  }
+}
