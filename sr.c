@@ -180,3 +180,70 @@ void A_input(struct pkt packet)
       printf("----A: corrupted ACK is received, do nothing!\n");
   }
 }
+
+/* called when A's timer goes off */
+void A_timerinterrupt(void)
+{
+  int i, idx;
+  int next_to_time = -1;
+  
+  /* Make sure we know which packet's timer expired */
+  if (timer_for_pkt != -1) {
+    /* Check if this packet is still waiting for ACK (it might have been ACKed just before timeout) */
+    if (!acked[timer_for_pkt]) {
+      /* Resend this packet */
+      if (TRACE > 0)
+        printf("----A: time out, resend packet %d\n", buffer[timer_for_pkt].seqnum);
+      printf("---A: resending packet %d\n", buffer[timer_for_pkt].seqnum);
+      tolayer3(A, buffer[timer_for_pkt]);
+      packets_resent++;
+      
+      /* Restart timer for this packet */
+      if (TRACE > 1)
+        printf("----A: Starting timer for packet %d\n", buffer[timer_for_pkt].seqnum);
+      starttimer(A, RTT);
+    } else {
+      /* This packet was already ACKed, find next unacked packet */
+      timer_for_pkt = -1;
+      
+      for (i=0; i<windowcount; i++) {
+        idx = (windowfirst + i) % WINDOWSIZE;
+        if (!acked[idx]) {
+          next_to_time = idx;
+          break;
+        }
+      }
+      
+      if (next_to_time != -1) {
+        if (TRACE > 1)
+          printf("----A: Starting timer for packet %d\n", buffer[next_to_time].seqnum);
+        starttimer(A, RTT);
+        timer_for_pkt = next_to_time;
+      }
+    }
+  }
+  /* If somehow we don't know which packet's timer expired, just time the first unacked packet */
+  else if (windowcount > 0) {
+    for (i=0; i<windowcount; i++) {
+      idx = (windowfirst + i) % WINDOWSIZE;
+      if (!acked[idx]) {
+        next_to_time = idx;
+        break;
+      }
+    }
+    
+    if (next_to_time != -1) {
+      if (TRACE > 0)
+        printf("----A: time out, resend packet %d\n", buffer[next_to_time].seqnum);
+      printf("---A: resending packet %d\n", buffer[next_to_time].seqnum);
+      tolayer3(A, buffer[next_to_time]);
+      packets_resent++;
+      
+      if (TRACE > 1)
+        printf("----A: Starting timer for packet %d\n", buffer[next_to_time].seqnum);
+      starttimer(A, RTT);
+      timer_for_pkt = next_to_time;
+    }
+  }
+}
+
