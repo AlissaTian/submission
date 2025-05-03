@@ -266,3 +266,84 @@ void B_init(void)
   }
 }
 
+/* called from layer 3, when a packet arrives for layer 4 at B*/
+void B_input(struct pkt packet)
+{
+  struct pkt sendpkt;
+  int i, idx;
+  int relative_seq;
+  
+  /* check if packet is corrupted */
+  if (IsCorrupted(packet)) {
+    if (TRACE > 0) 
+      printf("----B: packet corrupted, send NAK!\n");
+      
+    sendpkt.acknum = NOTINUSE;
+  }
+  else {
+    if (TRACE > 0)
+      printf("----B: uncorrupted packet %d is received\n", packet.seqnum);
+    
+    /* Calculate relative sequence number in window */
+    relative_seq = (packet.seqnum - B_base + SEQSPACE) % SEQSPACE;
+    
+    /* Check if packet is within receive window */
+    if (relative_seq < WINDOWSIZE) {
+      idx = relative_seq;
+      
+      /* Store packet if not already received */
+      if (!B_received[idx]) {
+        B_buffer[idx] = packet;
+        B_received[idx] = TRUE;
+        packets_received++;
+      }
+      
+      /* Try to deliver in-order packets */
+      while (B_received[0]) {
+        if (TRACE > 0)
+          printf("----B: delivering packet %d to layer5\n", B_base);
+        tolayer5(B, B_buffer[0].payload);
+        
+        /* Slide window */
+        for (i=0; i<WINDOWSIZE-1; i++) {
+          B_received[i] = B_received[i+1];
+          B_buffer[i] = B_buffer[i+1];
+        }
+        B_received[WINDOWSIZE-1] = FALSE;
+        
+        /* Update base sequence number */
+        B_base = (B_base + 1) % SEQSPACE;
+      }
+      
+      /* ACK this packet */
+      sendpkt.acknum = packet.seqnum;
+    }
+    else if (((packet.seqnum - B_base + SEQSPACE) % SEQSPACE) >= SEQSPACE - WINDOWSIZE) {
+      /* It's a duplicate of a packet we already received */
+      if (TRACE > 0)
+        printf("----B: packet outside receive window, likely old\n");
+      sendpkt.acknum = packet.seqnum;
+    }
+    else {
+      /* Packet is outside our window and not a duplicate */
+      if (TRACE > 0)
+        printf("----B: packet outside receive window\n");
+      sendpkt.acknum = NOTINUSE;
+    }
+  }
+
+  /* create ACK packet */
+  sendpkt.seqnum = B_nextseqnum;
+  B_nextseqnum = (B_nextseqnum + 1) % SEQSPACE;
+    
+  /* we don't have any data to send */
+  for (i=0; i<20; i++) 
+    sendpkt.payload[i] = '0';  
+
+  /* compute checksum */
+  sendpkt.checksum = ComputeChecksum(sendpkt); 
+
+  /* send packet */
+  tolayer3(B, sendpkt);
+}
+
