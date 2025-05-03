@@ -42,3 +42,27 @@ int IsCorrupted(struct pkt packet)
   else
     return (TRUE);
 }
+
+/********* Sender (A) variables and functions ************/
+
+static struct pkt buffer[WINDOWSIZE];    /* array for storing packets waiting for ACK */
+static int acked[WINDOWSIZE];           /* indicates whether packet has been ACKed */
+static int timer_for_pkt;              /* which packet currently has the timer running (-1 if none) */
+static int windowfirst, windowlast;      /* array indexes of the first/last packet awaiting ACK */
+static int windowcount;                  /* the number of packets currently awaiting an ACK */
+static int A_nextseqnum;                 /* the next sequence number to be used by the sender */
+
+void A_init(void)
+{
+  int i;
+
+  A_nextseqnum = 0;
+  windowfirst = 0;
+  windowlast = -1;
+  windowcount = 0;
+  timer_for_pkt = -1;
+  
+  for (i=0; i<WINDOWSIZE; i++) {
+    acked[i] = FALSE;
+  }
+}
