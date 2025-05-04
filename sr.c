@@ -16,7 +16,7 @@
 
 #define RTT  16.0       /* round trip time. MUST BE SET TO 16.0 when submitting assignment */
 #define WINDOWSIZE 6    /* the maximum number of buffered unacked packet */
-#define SEQSPACE 14     /* the sequence space for SR must be at least 2*windowsize */
+#define SEQSPACE 12     /* the sequence space for SR must be at least 2*windowsize */
 #define NOTINUSE (-1)   /* used to fill header fields that are not being used */
 #define FALSE 0
 #define TRUE 1
