@@ -276,6 +276,9 @@ void B_input(struct pkt packet)
     if (TRACE > 0)
       printf("----B: packet %d is correctly received, send ACK!\n", packet.seqnum);
     
+    /* 无论包是否在窗口内或是否重复，接收到的未损坏包都要计数 */
+    packets_received++;
+    
     /* Calculate relative sequence number in window */
     relative_seq = (packet.seqnum - B_base + SEQSPACE) % SEQSPACE;
     
@@ -292,7 +295,6 @@ void B_input(struct pkt packet)
       /* Try to deliver in-order packets */
       while (B_received[0]) {
         tolayer5(B, B_buffer[0].payload);
-        packets_received++;
         
         /* Slide window */
         for (i=0; i<WINDOWSIZE-1; i++) {
