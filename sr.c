@@ -99,7 +99,7 @@ void A_output(struct msg message)
     /* start timer for this packet if no timer is running */
     if (timer_for_pkt == -1) {
       if (TRACE > 1)
-        // printf("---A: resending packet %d\n", buffer[timer_for_pkt].seqnum);
+        printf("----A: Starting timer for packet %d\n", sendpkt.seqnum);
       starttimer(A, RTT);
       timer_for_pkt = windowlast;
     }
@@ -168,8 +168,8 @@ void A_input(struct pkt packet)
       }
       
       if (next_to_time != -1) {
-        // if (TRACE > 1)
-//     printf("----A: Starting timer for packet %d\n", sendpkt.seqnum);
+        if (TRACE > 1)
+          printf("----A: Starting timer for packet %d\n", buffer[next_to_time].seqnum);
         starttimer(A, RTT);
         timer_for_pkt = next_to_time;
       }
@@ -193,7 +193,7 @@ void A_timerinterrupt(void)
     if (!acked[timer_for_pkt]) {
       /* Resend this packet */
       if (TRACE > 0)
-        printf("----A: time out, resend packet %d\n", buffer[timer_for_pkt].seqnum);
+        printf("----A: time out,resend packets!\n");
       printf("---A: resending packet %d\n", buffer[timer_for_pkt].seqnum);
       tolayer3(A, buffer[timer_for_pkt]);
       packets_resent++;
@@ -234,7 +234,7 @@ void A_timerinterrupt(void)
     
     if (next_to_time != -1) {
       if (TRACE > 0)
-        printf("----A: time out, resend packet %d\n", buffer[next_to_time].seqnum);
+        printf("----A: time out,resend packets!\n");
       printf("---A: resending packet %d\n", buffer[next_to_time].seqnum);
       tolayer3(A, buffer[next_to_time]);
       packets_resent++;
@@ -282,7 +282,7 @@ void B_input(struct pkt packet)
   }
   else {
     if (TRACE > 0)
-      printf("----B: uncorrupted packet %d is received\n", packet.seqnum);
+      printf("----B: packet %d is correctly received, send ACK!\n", packet.seqnum);
     
     /* Calculate relative sequence number in window */
     relative_seq = (packet.seqnum - B_base + SEQSPACE) % SEQSPACE;
@@ -295,7 +295,6 @@ void B_input(struct pkt packet)
       if (!B_received[idx]) {
         B_buffer[idx] = packet;
         B_received[idx] = TRUE;
-        packets_received++;
       }
       
       /* Try to deliver in-order packets */
@@ -303,6 +302,7 @@ void B_input(struct pkt packet)
         if (TRACE > 0)
           printf("----B: delivering packet %d to layer5\n", B_base);
         tolayer5(B, B_buffer[0].payload);
+        packets_received++;
         
         /* Slide window */
         for (i=0; i<WINDOWSIZE-1; i++) {
@@ -354,4 +354,3 @@ void B_output(struct msg message)
 void B_timerinterrupt(void)
 {
 }
-
