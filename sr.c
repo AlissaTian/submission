@@ -211,6 +211,12 @@ void A_timerinterrupt(void)
       }
       
       if (next_to_time != -1) {
+        if (TRACE > 0)
+          printf("----A: time out,resend packets!\n");
+        printf("---A: resending packet %d\n", buffer[next_to_time].seqnum);
+        tolayer3(A, buffer[next_to_time]);
+        packets_resent++;
+        
         starttimer(A, RTT);
         timer_for_pkt = next_to_time;
       }
@@ -276,7 +282,7 @@ void B_input(struct pkt packet)
     if (TRACE > 0)
       printf("----B: packet %d is correctly received, send ACK!\n", packet.seqnum);
     
-    /* 无论包是否在窗口内或是否重复，接收到的未损坏包都要计数 */
+    /* 接收到未损坏的数据包，增加计数 */
     packets_received++;
     
     /* Calculate relative sequence number in window */
