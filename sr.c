@@ -99,7 +99,7 @@ void A_output(struct msg message)
     /* start timer for this packet if no timer is running */
     if (timer_for_pkt == -1) {
       if (TRACE > 1)
-        printf("----A: Starting timer for packet %d\n", sendpkt.seqnum);
+        // printf("---A: resending packet %d\n", buffer[timer_for_pkt].seqnum);
       starttimer(A, RTT);
       timer_for_pkt = windowlast;
     }
@@ -168,8 +168,8 @@ void A_input(struct pkt packet)
       }
       
       if (next_to_time != -1) {
-        if (TRACE > 1)
-          printf("----A: Starting timer for packet %d\n", buffer[next_to_time].seqnum);
+        // if (TRACE > 1)
+//     printf("----A: Starting timer for packet %d\n", sendpkt.seqnum);
         starttimer(A, RTT);
         timer_for_pkt = next_to_time;
       }
